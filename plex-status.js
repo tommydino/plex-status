@@ -1,4 +1,7 @@
 /*
+Install nodejs
+create directory with this file in it and run the following commands:
+npm install wreck@7.0.0 lodash@3.10.1
 
 Setup with crontab:
 * * * * * /usr/bin/node /home/dirrk/scripts/plex-info/plex-status.js >> /var/log/plex/plexstatus.log 2>/dev/null
