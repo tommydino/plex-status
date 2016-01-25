@@ -8,7 +8,9 @@ Setup with crontab:
 
 Setup splunk to consume json with timestamp from utc on timestamp field
 
+
 Example dashboard: http://imgur.com/E5jBA7S
+Dashboard template: https://gist.github.com/Dirrk/2b60d50b5702f395d9b3
 */
 
 
