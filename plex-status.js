@@ -34,9 +34,9 @@ wreck.get(url, function (err, response, payload) {
 
 function processOutput(payload) {
 
-
-	var timestamp = new Date().toISOString();
-    var videos = _.get(payload, 'MediaContainer.Video');
+    //console.log(JSON.stringify(payload));
+    var timestamp = new Date().toISOString();
+    var videos = getArray(payload, 'MediaContainer.Video');
 
     _.forEach(videos, function (video) {
         var output = {};
@@ -87,7 +87,11 @@ function processOutput(payload) {
           output.resolution = media.videoResolution;
           output.videoCodec = media.videoCodec;
           output.audioCodec = media.audioCodec;
-          output.file = _.get(media, 'Part.file');
+		  output.video_height = media.height;
+
+		  var part = getFirst(media, 'Part.file');
+		  output.file = part.file;
+		  output.file_size = part.size;
         }
 
         output.sessionId = _.get(video, 'Session.id');
@@ -98,10 +102,11 @@ function processOutput(payload) {
         output.writers = getTags(_.get(video, 'Writer'));
         output.producers = getTags(_.get(video, 'Producer'));
         output.genre = getTags(_.get(video, 'Genre'));
+        output.actors = getTags(_.get(video, 'Role'));
 
         console.log(JSON.stringify(output));
     });
-	process.exit();
+    process.exit();
 }
 
 
@@ -114,4 +119,22 @@ function getTags(obj) {
         return [obj.tag];
     }
     return undefined;
+}
+
+function getArray(obj, str) {
+    var target = _.get(obj, str);
+
+    if (!target) {
+        return [];
+    }
+
+    if (!_.isArray(target)) {
+        return [ target ];
+    }
+
+    return target;
+}
+
+function getFirst(obj, str) {
+    return _.first(getArray(obj, str));
 }
