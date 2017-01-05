@@ -68,6 +68,7 @@ function processOutput(payload) {
           output.device = player.device;
           output.player = player.title;
           output.status = player.state;
+          output.player_address = player.address;
         }
 
         var transcode = _.get(video, 'TranscodeSession');
@@ -88,6 +89,10 @@ function processOutput(payload) {
           output.videoCodec = media.videoCodec;
           output.audioCodec = media.audioCodec;
           output.video_height = media.height;
+          output.video_width = media.width;
+          output.framerate = media.videoFrameRate;
+          output.bitrate = media.bitrate;
+          output.optimized_for_streaming = media.optimizedForStreaming;
 
           var part = getFirst(media, 'Part');
           output.file = part.file;
