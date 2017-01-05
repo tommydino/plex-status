@@ -1,67 +1,76 @@
+// jscs: disable
+
 /*
-Install nodejs
-create directory with this file in it and run the following commands:
-npm install wreck@7.0.0 lodash@3.10.1
-
 Setup with crontab:
-* * * * * /usr/bin/node /home/dirrk/scripts/plex-info/plex-status.js >> /var/log/plex/plexstatus.log 2>/dev/null
-
+* * * * * /usr/bin/node /home/dirrk/scripts/plex-info/index.js >> /var/log/plex/plexstatus.log 2>/dev/null
 Setup splunk to consume json with timestamp from utc on timestamp field
-
-
 Example dashboard: http://imgur.com/E5jBA7S
-Dashboard template: https://gist.github.com/Dirrk/2b60d50b5702f395d9b3
 */
 
-
 var wreck = require('wreck'),
-    _ = require('lodash');
+    _ = require('lodash'),
+    Parser = require('xml2js').Parser;
 
-var options = {
-    json: true,
-    headers: {
-        Accept: 'application/json'
-    }
-};
+var token = 'YOUR_TOKEN_HERE';
+var url = 'http://localhost:32400/status/sessions?X-Plex-Token=' + token;
 
-wreck.get('http://localhost:32400/status/sessions', options, function (err, response, payload) {
+wreck.get(url, function (err, response, payload) {
 
-    var timestamp = new Date().toISOString();
+    var parser = new Parser({ mergeAttrs: true, explicitArray: false });
 
     if (err || response.statusCode !== 200) {
+        console.log(JSON.stringify({ success: false, timestamp: timestamp, statusCode: response.statusCode }));
         process.exit();
     }
 
-    payload._children.forEach(function (child) {
+    parser.parseString(payload.toString('utf8'), function(err, result) {
+
+        if (!err) {
+            return processOutput(result);
+        }
+        process.exit();
+    });
+});
+
+function processOutput(payload) {
+
+
+	var timestamp = new Date().toISOString();
+    var videos = _.get(payload, 'MediaContainer.Video');
+
+    _.forEach(videos, function (video) {
         var output = {};
 
+        output.success = true;
         output.timestamp = timestamp;
-        output.title = child.title;
-        output.plexId = child.ratingKey;
-        output.plexType = child.type;
+        output.title = video.title;
+        output.plexId = video.ratingKey;
+        output.plexType = video.type;
+        output.year = video.year;
 
-        if (child.type === 'episode') {
-          output.show = child.grandparentTitle;
-          output.season = child.parentIndex.toString();
-	        output.episode = child.index.toString();
+        if (video.type === 'episode') {
+          output.show = video.grandparentTitle;
+          output.season = video.parentIndex;
+          output.episode = video.index;
         }
 
-      	var user = _.findWhere(child._children, { _elementType: 'User' });
+        var user = _.get(video, 'User');
 
         if (user) {
           output.user = user.title;
           output.userId = user.id;
         }
 
-      	var player = _.findWhere(child._children, { _elementType: 'Player' });
+        var player = _.get(video, 'Player');
 
         if (player) {
           output.platform = player.platform;
+          output.device = player.device;
           output.player = player.title;
           output.status = player.state;
         }
 
-      	var transcode = _.findWhere(child._children, { _elementType: 'TranscodeSession' });
+        var transcode = _.get(video, 'TranscodeSession');
 
         if (transcode) {
           output.video_transcoding = transcode.videoDecision;
@@ -69,20 +78,40 @@ wreck.get('http://localhost:32400/status/sessions', options, function (err, resp
 
           output.throttled = transcode.throttled;
           output.progress = Math.floor(transcode.progress);
-          output.videoCodec = transcode.videoCodec;
-          output.audioCodec = transcode.audioCodec;
         }
 
-      	var media = _.findWhere(child._children, { _elementType: 'Media' });
+        var media = _.get(video, 'Media');
 
         if (media) {
           output.container = media.container;
-        	output.resolution = media.videoResolution;
-
-        	media = _.first(media._children) || { file: 'unknown' };
-        	output.file = media.file;
+          output.resolution = media.videoResolution;
+          output.videoCodec = media.videoCodec;
+          output.audioCodec = media.audioCodec;
+          output.file = _.get(media, 'Part.file');
         }
 
-      	console.log(JSON.stringify(output));
+        output.sessionId = _.get(video, 'Session.id');
+        output.bandwidth = _.get(video, 'Session.bandwidth');
+        output.sessionlocation = _.get(video, 'Session.location');
+
+        output.directors = getTags(_.get(video, 'Director'));
+        output.writers = getTags(_.get(video, 'Writer'));
+        output.producers = getTags(_.get(video, 'Producer'));
+        output.genre = getTags(_.get(video, 'Genre'));
+
+        console.log(JSON.stringify(output));
     });
-});
+	process.exit();
+}
+
+
+function getTags(obj) {
+    if (_.isArray(obj)) {
+        return obj.map(function(o) {
+            return o.tag || '';
+        });
+    } else if (_.isObject(obj)) {
+        return [obj.tag];
+    }
+    return undefined;
+}
