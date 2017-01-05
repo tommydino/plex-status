@@ -87,11 +87,11 @@ function processOutput(payload) {
           output.resolution = media.videoResolution;
           output.videoCodec = media.videoCodec;
           output.audioCodec = media.audioCodec;
-		  output.video_height = media.height;
+          output.video_height = media.height;
 
-		  var part = getFirst(media, 'Part.file');
-		  output.file = part.file;
-		  output.file_size = part.size;
+          var part = getFirst(media, 'Part');
+          output.file = part.file;
+          output.file_size = part.size;
         }
 
         output.sessionId = _.get(video, 'Session.id');
